@@ -5,6 +5,9 @@ import { GlobalValidationPipe } from './common/pipes/global-validation.pipe';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new GlobalValidationPipe());
-  await app.listen(process.env.PORT ?? 3000);
+
+  const port = Number(process.env.PORT) || 3000;
+  await app.listen(port);
+  console.log(`Server is running on http://localhost:${port}`);
 }
 bootstrap();

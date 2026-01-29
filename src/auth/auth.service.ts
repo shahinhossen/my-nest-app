@@ -1,9 +1,5 @@
 import * as bcrypt from 'bcrypt';
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { UserService } from 'src/user/user.service';
 
 type CreateUser = {
@@ -22,15 +18,6 @@ export class AuthService {
   constructor(private readonly userService: UserService) {}
 
   async register(data: CreateUser) {
-    /**
-     * Check User already exists
-     * hash password
-     * create user
-     */
-
-    const isExist = this.userService.findUserByEmail(data.email);
-    if (isExist) throw new ConflictException('User Already Exists!');
-
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
     const user = this.userService.createUser({
@@ -41,18 +28,7 @@ export class AuthService {
   }
 
   async login(data: LoginData) {
-    /**
-     * Check user exists
-     * check password match
-     * return response
-     */
-
-    const user = this.userService.findUserByEmail(data.email);
-    if (!user) throw new BadRequestException('Invalid Credentials!');
-
-    const matchPassword = await bcrypt.compare(data.password, user.password);
-    if (!matchPassword) throw new BadRequestException('Invalid Credentials!');
-
-    return { message: `Welcome Back! Hello ${user.name}` };
+    const result = await this.userService.loginUser(data);
+    return result;
   }
 }

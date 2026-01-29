@@ -1,9 +1,12 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User } from 'src/schemas/user.schema';
+import * as bcrypt from 'bcrypt';
 
 type CreateUser = {
   id?: string;
@@ -14,82 +17,36 @@ type CreateUser = {
 
 @Injectable()
 export class UserService {
-  private users: CreateUser[] = [
-    {
-      id: '01',
-      name: 'Shahin Rana',
-      email: 'shahin@gmail.com',
-      password: 'Test1234',
-    },
-    {
-      id: '02',
-      name: 'Shahin Rana',
-      email: 'shahin1@gmail.com',
-      password: 'Test1234',
-    },
-  ];
+  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
 
-  findUserByEmail(email: string) {
-    return this.users.find((user) => user.email === email);
+  async createUser(data: CreateUser) {
+    const isAlreadyExist = await this.userModel.findOne({ email: data.email });
+    if (isAlreadyExist) {
+      throw new ConflictException('With this email already exists!');
+    }
+
+    const user = new this.userModel({
+      name: data.name,
+      email: data.email,
+      password: data.password,
+    });
+    await user.save();
+    return { message: 'User Created!', user };
   }
 
-  createUser(data: CreateUser) {
-    const id = (this.users.length + 1).toString();
-    this.users.push({ id, ...data });
-    return { message: 'User Created!', data };
-  }
-
-  findAll() {
-    return this.users;
-  }
-
-  findById(id: string) {
-    const user = this.users.find((user) => user.id === id);
-    if (!user) throw new NotFoundException('User not Fount!');
-    return user;
-  }
-
-  updateUserInfo(id: string, data: { name?: string; email?: string }) {
-    const user = this.findById(id);
+  async loginUser(data: { email: string; password: string }) {
+    const user = await this.userModel.findOne({ email: data.email });
     if (!user) {
-      throw new NotFoundException('User not found!');
+      throw new NotFoundException('Invalid credentials!');
     }
 
-    if (data.name) {
-      if (user.name.toLowerCase() === data.name.toLowerCase()) {
-        throw new BadRequestException(
-          'Current name and new name cannot be the same!',
-        );
-      }
-      user.name = data.name;
+    const matchPassword = await bcrypt.compare(data.password, user.password);
+    if (!matchPassword) {
+      throw new NotFoundException('Invalid credentials!');
     }
 
-    if (data.email) {
-      if (user.email.toLowerCase() === data.email.toLowerCase()) {
-        throw new BadRequestException(
-          'Current email and new email cannot be the same!',
-        );
-      }
+    const token = `${user.password}`;
 
-      const existingUser = this.findUserByEmail(data.email);
-
-      if (existingUser && existingUser.id !== user.id) {
-        throw new ConflictException(
-          'This email is already used by another account!',
-        );
-      }
-
-      user.email = data.email;
-    }
-
-    return { message: 'User updated!', user };
-  }
-
-  deleteUser(id: string) {
-    const user = this.findById(id);
-    if (!user) throw new NotFoundException('User not Found!');
-    const filteredUser = this.users.filter((user) => user.id !== id);
-    this.users = filteredUser;
-    return { message: 'User deleted!', deletedUser: user };
+    return { message: 'Welcome Back!', token };
   }
 }
