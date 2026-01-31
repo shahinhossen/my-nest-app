@@ -18,6 +18,10 @@ type CreateUser = {
 @Injectable()
 export class UserService {
   constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+  async getAllUsers() {
+    const users = await this.userModel.find();
+    return { message: 'All Users Fetched!', users };
+  }
 
   async createUser(data: CreateUser) {
     const isAlreadyExist = await this.userModel.findOne({ email: data.email });
